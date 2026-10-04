@@ -10,7 +10,7 @@
 import Foundation
 import PackageDescription
 
-let supportedNativePlatforms: [Platform] = [.macOS, .windows]
+let supportedNativePlatforms: [Platform] = [.macOS, .windows, .android]
 let wasmPlatforms: [Platform] = [.wasi]
 
 let swanLocalDawnPath: String? = ProcessInfo.processInfo.environment["SWAN_LOCAL_DAWN"].flatMap { $0.isEmpty ? nil : $0 }
@@ -68,6 +68,12 @@ if useAddressSanitizer {
 		.unsafeFlags(["-sanitize=address"])
 	])
 }
+
+let androidLinkerSettings: [LinkerSetting] = [
+	.linkedLibrary("android", .when(platforms: [.android])),
+	.linkedLibrary("log", .when(platforms: [.android])),
+	.linkedLibrary("dl", .when(platforms: [.android])),
+]
 
 let asanLinkerSettings: [LinkerSetting] =
 	useAddressSanitizer
@@ -136,7 +142,7 @@ let package = Package(
 					.enableExperimentalFeature("Extern"),
 					.treatWarning("EmbeddedRestrictions", as: .warning),
 				],
-				linkerSettings: asanLinkerSettings
+				linkerSettings: asanLinkerSettings + androidLinkerSettings
 			),
 			.target(
 				name: "WebGPU",
@@ -149,7 +155,8 @@ let package = Package(
 				],
 				swiftSettings: swiftSettings + [.treatWarning("EmbeddedRestrictions", as: .warning)],
 				// Explicitly link swiftUnicodeDataTables for WASM embedded build
-				linkerSettings: asanLinkerSettings + (isWasmEmbeddedBuild ? [.linkedLibrary("swiftUnicodeDataTables")] : [])
+				linkerSettings: asanLinkerSettings + androidLinkerSettings
+					+ (isWasmEmbeddedBuild ? [.linkedLibrary("swiftUnicodeDataTables")] : [])
 			),
 			.executableTarget(
 				name: "BitonicSort",
@@ -178,7 +185,7 @@ let package = Package(
 					"README.md"
 				],
 				swiftSettings: swiftSettings,
-				linkerSettings: asanLinkerSettings
+				linkerSettings: asanLinkerSettings + androidLinkerSettings
 			),
 			.executableTarget(
 				name: "GenerateDawnAPINotes",
@@ -189,7 +196,7 @@ let package = Package(
 					"README.md"
 				],
 				swiftSettings: swiftSettings,
-				linkerSettings: asanLinkerSettings
+				linkerSettings: asanLinkerSettings + androidLinkerSettings
 			),
 			.plugin(
 				name: "GenerateDawnBindingsPlugin",
@@ -232,7 +239,7 @@ let package = Package(
 					.unsafeFlags(["-std=c++23"])
 				],
 				swiftSettings: swiftSettings,
-				linkerSettings: asanLinkerSettings
+				linkerSettings: asanLinkerSettings + androidLinkerSettings
 			),
 			.target(
 				name: "DawnData",
@@ -240,7 +247,7 @@ let package = Package(
 					"DawnLib"
 				],
 				swiftSettings: swiftSettings,
-				linkerSettings: asanLinkerSettings
+				linkerSettings: asanLinkerSettings + androidLinkerSettings
 			),
 			.target(
 				name: "Dawn",
@@ -249,7 +256,7 @@ let package = Package(
 					"DawnLib",
 				],
 				swiftSettings: swiftSettings,
-				linkerSettings: asanLinkerSettings
+				linkerSettings: asanLinkerSettings + androidLinkerSettings
 			),
 			.target(
 				name: "WebGPUDawn",
@@ -259,7 +266,7 @@ let package = Package(
 				],
 				path: "Sources/WebGPU/Dawn",
 				swiftSettings: swiftSettings,
-				linkerSettings: asanLinkerSettings
+				linkerSettings: asanLinkerSettings + androidLinkerSettings
 			),
 			.target(
 				name: "WebGPU",
@@ -271,13 +278,13 @@ let package = Package(
 					"Wasm",
 				],
 				swiftSettings: swiftSettings + [.treatWarning("EmbeddedRestrictions", as: .warning)],
-				linkerSettings: asanLinkerSettings
+				linkerSettings: asanLinkerSettings + androidLinkerSettings
 			),
 			.target(
 				name: "RGFW",
 				path: "Demos/RGFW",
 				swiftSettings: swiftSettings,
-				linkerSettings: asanLinkerSettings
+				linkerSettings: asanLinkerSettings + androidLinkerSettings
 			),
 			.target(
 				name: "DemoUtils",
@@ -287,7 +294,7 @@ let package = Package(
 				],
 				path: "Demos/DemoUtils",
 				swiftSettings: swiftSettings,
-				linkerSettings: asanLinkerSettings + [
+				linkerSettings: asanLinkerSettings + androidLinkerSettings + [
 					.linkedLibrary("dxgi", .when(platforms: [.windows])),
 					.linkedLibrary("d3d12", .when(platforms: [.windows])),
 					.linkedLibrary("dxguid", .when(platforms: [.windows])),
@@ -300,7 +307,7 @@ let package = Package(
 				],
 				path: "Demos/GameOfLife",
 				swiftSettings: swiftSettings,
-				linkerSettings: asanLinkerSettings + [
+				linkerSettings: asanLinkerSettings + androidLinkerSettings + [
 					.linkedFramework("Cocoa", .when(platforms: [.macOS])),
 					.linkedFramework("IOKit", .when(platforms: [.macOS])),
 					.linkedFramework("Metal", .when(platforms: [.macOS])),
@@ -315,7 +322,7 @@ let package = Package(
 				path: "Demos/BitonicSort",
 				exclude: ["index.html", "bridge-js.config.json", "Generated/BridgeJS.swift", "Generated/JavaScript"],
 				swiftSettings: swiftSettings,
-				linkerSettings: asanLinkerSettings + [
+				linkerSettings: asanLinkerSettings + androidLinkerSettings + [
 					.linkedFramework("Cocoa", .when(platforms: [.macOS])),
 					.linkedFramework("IOKit", .when(platforms: [.macOS])),
 					.linkedFramework("Metal", .when(platforms: [.macOS])),
@@ -329,7 +336,7 @@ let package = Package(
 				],
 				path: "Demos/Leaks",
 				swiftSettings: swiftSettings,
-				linkerSettings: asanLinkerSettings + [
+				linkerSettings: asanLinkerSettings + androidLinkerSettings + [
 					.linkedFramework("Cocoa", .when(platforms: [.macOS])),
 					.linkedFramework("IOKit", .when(platforms: [.macOS])),
 					.linkedFramework("Metal", .when(platforms: [.macOS])),
@@ -352,7 +359,7 @@ let package = Package(
 							"GenerateDawnAPINotes",
 						],
 						swiftSettings: swiftSettings,
-						linkerSettings: asanLinkerSettings
+						linkerSettings: asanLinkerSettings + androidLinkerSettings
 					),
 					.testTarget(
 						name: "DawnTests",
@@ -360,7 +367,7 @@ let package = Package(
 							"WebGPU"
 						],
 						swiftSettings: swiftSettings,
-						linkerSettings: asanLinkerSettings + [
+						linkerSettings: asanLinkerSettings + androidLinkerSettings + [
 							.linkedFramework("IOSurface", .when(platforms: [.macOS])),
 							.linkedFramework("Metal", .when(platforms: [.macOS])),
 							.linkedFramework("QuartzCore", .when(platforms: [.macOS])),
@@ -371,3 +378,12 @@ let package = Package(
 					),
 				])
 )
+
+// Native consumers use checked-in bindings and need no generator dependencies.
+// This also lets apps with macros choose their own SwiftSyntax version.
+if ProcessInfo.processInfo.environment["SWAN_RUNTIME_ONLY"] == "1" && !isWasmBuild {
+	let runtimeTargets: Set<String> = ["DawnLib", "CDawn", "Dawn", "WebGPUDawn", "WebGPU"]
+	package.targets = package.targets.filter { runtimeTargets.contains($0.name) }
+	package.products = package.products.filter { $0.name == "WebGPU" }
+	package.dependencies = []
+}
