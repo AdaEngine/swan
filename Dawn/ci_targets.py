@@ -84,6 +84,8 @@ def ci_target(target: str, archs: list[str], config: str = "release") -> TargetC
                 deployment_target="18.0",
                 config=config,
             )
+        case "android":
+            return TargetConfig(os=OS.ANDROID, arch=arch_enums, deployment_target="29", config=config)
         case "linux":
             return TargetConfig(os=OS.LINUX, arch=arch_enums, config=config)
         case "windows":

@@ -47,12 +47,14 @@ class PlatformGroup(str, Enum):
     APPLE = "apple"
     WINDOWS = "windows"
     LINUX = "linux"
+    ANDROID = "android"
 
 
 class OS(Enum):
     MACOS = "macosx"
     WINDOWS = "windows"
     LINUX = "linux"
+    ANDROID = "android"
     IPHONE = "iphone"
     IPADOS = "ipados"
 
@@ -85,6 +87,8 @@ class OS(Enum):
             return PlatformGroup.APPLE
         if self.is_windows():
             return PlatformGroup.WINDOWS
+        if self == OS.ANDROID:
+            return PlatformGroup.ANDROID
         return PlatformGroup.LINUX
 
     @classmethod
@@ -162,6 +166,12 @@ class TargetConfig:
         Returns:
             List of target triple strings
         """
+        if self.os == OS.ANDROID:
+            api = int(self.deployment_target or "29")
+            if api < 29:
+                raise ValueError("Android Dawn requires API 29 or newer")
+            return [f"{'aarch64' if arch in [Arch.ARM64, Arch.AARCH64] else arch.value}-unknown-linux-android{level}"
+                    for arch in self.arch for level in range(api, 38)]
         vendor = "apple" if self.os.is_apple() else "unknown"
         os = self.os.value
         if self.runtime:
@@ -187,6 +197,36 @@ def cmake_flags(target_config: TargetConfig) -> List[str]:
         List of CMake flags
     """
     flags = []
+
+    if target_config.os == OS.ANDROID:
+        if len(target_config.arch) != 1:
+            raise ValueError("Build each Android ABI separately")
+        ndk = os.environ.get("ANDROID_NDK_HOME") or os.environ.get("ANDROID_NDK_ROOT")
+        if not ndk:
+            raise FileNotFoundError("Set ANDROID_NDK_HOME to the Android NDK")
+        toolchain = pathlib.Path(ndk) / "build/cmake/android.toolchain.cmake"
+        if not toolchain.is_file():
+            raise FileNotFoundError(f"NDK toolchain not found: {toolchain}")
+        abi = "arm64-v8a" if target_config.arch[0] in [Arch.ARM64, Arch.AARCH64] else "x86_64"
+        flags += [
+            f"-DCMAKE_TOOLCHAIN_FILE={toolchain}",
+            f"-DANDROID_ABI={abi}",
+            f"-DANDROID_PLATFORM=android-{target_config.deployment_target or '29'}",
+            "-DANDROID_STL=c++_shared",
+            "-DDAWN_ENABLE_VULKAN=ON",
+            "-DDAWN_ENABLE_OPENGLES=OFF",
+            "-DDAWN_ENABLE_DESKTOP_GL=OFF",
+            "-DDAWN_ENABLE_METAL=OFF",
+            "-DDAWN_ENABLE_D3D11=OFF",
+            "-DDAWN_ENABLE_D3D12=OFF",
+            "-DDAWN_ENABLE_NULL=OFF",
+            "-DDAWN_USE_GLFW=OFF",
+            "-DDAWN_BUILD_TESTS=OFF",
+            "-DDAWN_BUILD_PROTOBUF=OFF",
+            "-DTINT_BUILD_IR_BINARY=OFF",
+            "-DTINT_BUILD_GLSL_VALIDATOR=OFF",
+            "-DDAWN_SUPPORTS_CXX_MODULES=OFF",
+        ]
 
     if target_config.os == OS.LINUX:
         # CMake cannot scan module dependencies with the Linux GCC toolchain.

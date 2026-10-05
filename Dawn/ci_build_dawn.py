@@ -100,7 +100,7 @@ def parse_args() -> argparse.Namespace:
     build_parser = subparsers.add_parser("build-target", help="Build a target")
     build_parser.add_argument(
         "--target",
-        choices=["windows", "linux", "macosx", "iphoneos", "iphonesimulator"],
+        choices=["windows", "linux", "macosx", "iphoneos", "iphonesimulator", "android"],
         required=True,
         help="Target OS to build for",
     )

@@ -41,3 +41,23 @@ pip3 install -r requirements.txt
 ./ci_build_dawn.py bundle --chromium-version 142.0.7404.0 --dawn-hash cc0a37d660cef88a78a751b9fc1431be3d1ce2eb --bundle-name dawn_webgpu_chromium_142.0.7404.0_canary_cc0a37d660cef88a78a751b9fc1431be3d1ce2eb
 ```
 
+
+## Android / Vulkan
+
+Use Python 3.10+, CMake, Ninja and an Android NDK (API 29+). The Android
+profile enables Vulkan and disables OpenGL ES, desktop GL and desktop backends.
+The helper pins Dawn to the revision used by the checked-in Swift bindings:
+
+```sh
+export ANDROID_NDK_HOME=/path/to/android-ndk
+python3 Dawn/build_android.py --arch arm64 --jobs 6
+# Add --arch x86_64 to produce both variants.
+export SWAN_LOCAL_DAWN=Dawn/dist/android.artifactbundle
+export SWAN_RUNTIME_ONLY=1
+swift build --swift-sdk aarch64-unknown-linux-android29 --target WebGPU
+```
+
+`SWAN_LOCAL_DAWN` is relative to the Swan package root. `SWAN_RUNTIME_ONLY=1`
+uses checked-in native bindings and excludes generator tools and their
+SwiftSyntax/SwiftFormat dependencies. Do not use it while regenerating bindings.
+Original Dawn builds retain debug data; artifact copies are stripped.

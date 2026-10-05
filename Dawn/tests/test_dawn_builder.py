@@ -1,4 +1,7 @@
 import unittest
+import os
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 from ci_targets import ci_target
@@ -6,6 +9,23 @@ from dawn_builder import Arch, OS, TargetConfig, cmake_flags
 
 
 class CMakeFlagsTests(unittest.TestCase):
+    def test_android_vulkan_profile_and_versioned_triples(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            toolchain = Path(directory) / "build/cmake/android.toolchain.cmake"
+            toolchain.parent.mkdir(parents=True)
+            toolchain.touch()
+            with patch.dict(os.environ, {"ANDROID_NDK_HOME": directory}):
+                target = ci_target("android", ["arm64"])
+                flags = cmake_flags(target)
+                self.assertIn("-DANDROID_ABI=arm64-v8a", flags)
+                self.assertIn("-DANDROID_PLATFORM=android-29", flags)
+                self.assertIn("-DDAWN_ENABLE_VULKAN=ON", flags)
+                self.assertIn("-DDAWN_ENABLE_OPENGLES=OFF", flags)
+                self.assertIn("aarch64-unknown-linux-android29", target.triples())
+                self.assertNotIn("aarch64-unknown-linux-android28", target.triples())
+                with self.assertRaisesRegex(ValueError, "separately"):
+                    cmake_flags(ci_target("android", ["arm64", "x86_64"]))
+
     def test_windows_targets_use_visual_studio_18_generator(self) -> None:
         for arch in ("x86_64", "arm64"):
             with self.subTest(arch=arch):
